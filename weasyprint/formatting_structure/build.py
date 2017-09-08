@@ -17,13 +17,14 @@
 from __future__ import division, unicode_literals
 
 import re
+from collections import ChainMap
 
 import tinycss2.color3
 
 from . import boxes, counters
 from .. import html
 from ..compat import basestring, xrange
-from ..css import properties
+from ..css import get_color, properties
 
 # Maps values of the ``display`` CSS property to box types.
 BOX_TYPE_FROM_DISPLAY = {
@@ -58,9 +59,9 @@ def build_formatting_structure(element_tree, style_for, get_image_from_uri,
             if style:
                 # TODO: we should check that the element has a parent instead.
                 if element.tag == 'html':
-                    style.display = 'block'
+                    style['display'] = 'block'
                 else:
-                    style.display = 'none'
+                    style['display'] = 'none'
             return style
         box, = element_to_box(
             element_tree, root_style_for, get_image_from_uri, base_url)
@@ -75,7 +76,7 @@ def build_formatting_structure(element_tree, style_for, get_image_from_uri,
 
 
 def make_box(element_tag, style, content, get_image_from_uri):
-    return BOX_TYPE_FROM_DISPLAY[style.display](
+    return BOX_TYPE_FROM_DISPLAY[style['display']](
         element_tag, style, content)
 
 
@@ -113,7 +114,7 @@ def element_to_box(element, style_for, get_image_from_uri, base_url,
 
     # TODO: should be the used value. When does the used value for `display`
     # differ from the computer value?
-    display = style.display
+    display = style['display']
     if display == 'none':
         return []
 
@@ -180,14 +181,14 @@ def before_after_to_box(element, pseudo_type, state, style_for,
     """Yield the box for ::before or ::after pseudo-element if there is one."""
     style = style_for(element, pseudo_type)
     if pseudo_type and style is None:
-        # Pseudo-elements with no style at all do not get a StyleDict
+        # Pseudo-elements with no style at all do not get a style dict.
         # Their initial content property computes to 'none'.
         return
 
     # TODO: should be the used value. When does the used value for `display`
     # differ from the computer value?
-    display = style.display
-    content = style.content
+    display = style['display']
+    content = style['content']
     if 'none' in (display, content) or content == 'normal':
         return
 
@@ -211,7 +212,7 @@ def content_to_boxes(style, parent_box, quote_depth, counter_values,
                      get_image_from_uri, context=None):
     """Takes the value of a ``content`` property and yield boxes."""
     texts = []
-    for type_, value in style.content:
+    for type_, value in style['content']:
         if type_ == 'STRING':
             texts.append(value)
         elif type_ == 'URI':
@@ -241,7 +242,7 @@ def content_to_boxes(style, parent_box, quote_depth, counter_values,
             if not is_open:
                 quote_depth[0] = max(0, quote_depth[0] - 1)
             if insert:
-                open_quotes, close_quotes = style.quotes
+                open_quotes, close_quotes = style['quotes']
                 quotes = open_quotes if is_open else close_quotes
                 texts.append(quotes[min(quote_depth[0], len(quotes) - 1)])
             if is_open:
@@ -304,7 +305,7 @@ def update_counters(state, style):
     _quote_depth, counter_values, counter_scopes = state
     sibling_scopes = counter_scopes[-1]
 
-    for name, value in style.counter_reset:
+    for name, value in style['counter_reset']:
         if name in sibling_scopes:
             counter_values[name].pop()
         else:
@@ -312,7 +313,7 @@ def update_counters(state, style):
         counter_values.setdefault(name, []).append(value)
 
     # XXX Disabled for now, only exists in Lists3’s editor’s draft.
-#    for name, value in style.counter_set:
+#    for name, value in style['counter_set']:
 #        values = counter_values.setdefault(name, [])
 #        if not values:
 #            assert name not in sibling_scopes
@@ -320,13 +321,13 @@ def update_counters(state, style):
 #            values.append(0)
 #        values[-1] = value
 
-    counter_increment = style.counter_increment
+    counter_increment = style['counter_increment']
     if counter_increment == 'auto':
         # 'auto' is the initial value but is not valid in stylesheet:
         # there was no counter-increment declaration for this element.
         # (Or the winning value was 'initial'.)
         # http://dev.w3.org/csswg/css3-lists/#declaring-a-list-item
-        if style.display == 'list-item':
+        if style['display'] == 'list-item':
             counter_increment = [('list-item', 1)]
         else:
             counter_increment = []
@@ -347,13 +348,13 @@ def add_box_marker(box, counter_values, get_image_from_uri):
 
     """
     style = box.style
-    image_type, image = style.list_style_image
+    image_type, image = style['list_style_image']
     if image_type == 'url':
         # surface may be None here too, in case the image is not available.
         image = get_image_from_uri(image)
 
     if image is None:
-        type_ = style.list_style_type
+        type_ = style['list_style_type']
         if type_ == 'none':
             return
         counter_value = counter_values.get('list-item', [0])[-1]
@@ -364,7 +365,7 @@ def add_box_marker(box, counter_values, get_image_from_uri):
         marker_box.is_list_marker = True
     marker_box.element_tag += '::marker'
 
-    position = style.list_style_position
+    position = style['list_style_position']
     if position == 'inside':
         yield marker_box
     elif position == 'outside':
@@ -542,7 +543,7 @@ def wrap_table(box, children):
     # Split top and bottom captions
     captions = {'top': [], 'bottom': []}
     for caption in all_captions:
-        captions[caption.style.caption_side].append(caption)
+        captions[caption.style['caption_side']].append(caption)
 
     # Assign X positions on the grid to column boxes
     column_groups = list(wrap_improper(
@@ -567,7 +568,7 @@ def wrap_table(box, children):
     header = None
     footer = None
     for group in row_groups:
-        display = group.style.display
+        display = group.style['display']
         if display == 'table-header-group' and header is None:
             group.is_header = True
             header = group
@@ -621,7 +622,7 @@ def wrap_table(box, children):
 
     table = box.copy_with_children(row_groups)
     table.column_groups = tuple(column_groups)
-    if table.style.border_collapse == 'collapse':
+    if table.style['border_collapse'] == 'collapse':
         table.collapsed_border_grid = collapse_table_borders(
             table, grid_width, grid_height)
 
@@ -632,16 +633,11 @@ def wrap_table(box, children):
 
     wrapper = wrapper_type.anonymous_from(
         box, captions['top'] + [table] + captions['bottom'])
-    wrapper.style = wrapper.style.copy()
+    wrapper.style = ChainMap({}, wrapper.style)
     wrapper.is_table_wrapper = True
-    if not table.style.anonymous:
-        # Non-inherited properties of the table element apply to one
-        # of the wrapper and the table. The other get the initial value.
-        # TODO: put this in a method of the table object
-        for name in properties.TABLE_WRAPPER_BOX_PROPERTIES:
-            wrapper.style[name] = table.style[name]
-            table.style[name] = properties.INITIAL_VALUES[name]
-    # else: non-inherited properties already have their initial values
+    for name in properties.TABLE_WRAPPER_BOX_PROPERTIES:
+        wrapper.style[name] = table.style[name]
+        table.style[name] = properties.INITIAL_VALUES[name]
 
     return wrapper
 
@@ -676,7 +672,7 @@ def collapse_table_borders(table, grid_width, grid_height):
     def set_one_border(border_grid, box_style, side, grid_x, grid_y):
         style = box_style['border_%s_style' % side]
         width = box_style['border_%s_width' % side]
-        color = box_style.get_color('border_%s_color' % side)
+        color = get_color(box_style, 'border_%s_color' % side)
 
         # http://www.w3.org/TR/CSS21/tables.html#border-conflict-resolution
         score = ((1 if style == 'hidden' else 0), width, style_scores[style])
@@ -815,8 +811,8 @@ def process_whitespace(box, following_collapsible_space=False):
         # Normalize line feeds
         text = re.sub('\r\n?', '\n', text)
 
-        new_line_collapse = box.style.white_space in ('normal', 'nowrap')
-        space_collapse = box.style.white_space in (
+        new_line_collapse = box.style['white_space'] in ('normal', 'nowrap')
+        space_collapse = box.style['white_space'] in (
             'normal', 'nowrap', 'pre-line')
 
         if space_collapse:
@@ -921,7 +917,7 @@ def inline_in_block(box):
                     # Sequence of white-space was collapsed to a single
                     # space by process_whitespace().
                     child_box.text == ' ' and
-                    child_box.style.white_space in (
+                    child_box.style['white_space'] in (
                         'normal', 'nowrap', 'pre-line')):
                 new_line_children.append(child_box)
         else:
@@ -1114,13 +1110,13 @@ def set_viewport_overflow(root_box):
     """
     chosen_box = root_box
     if (root_box.element_tag.lower() == 'html' and
-            root_box.style.overflow == 'visible'):
+            root_box.style['overflow'] == 'visible'):
         for child in root_box.children:
             if child.element_tag.lower() == 'body':
                 chosen_box = child
                 break
 
-    root_box.viewport_overflow = chosen_box.style.overflow
+    root_box.viewport_overflow = chosen_box.style['overflow']
     chosen_box.style['overflow'] = 'visible'
     return root_box
 

@@ -14,6 +14,7 @@ from collections import namedtuple
 from itertools import cycle
 
 from . import replaced
+from ..css import get_color
 from ..formatting_structure import boxes
 from .percentages import resolve_radii_percentages
 
@@ -58,27 +59,28 @@ def layout_box_backgrounds(page, box, get_image_from_uri):
         layout_box_backgrounds(page, child, get_image_from_uri)
 
     style = box.style
-    if style.visibility == 'hidden':
+    if style['visibility'] == 'hidden':
         box.background = None
         return
 
     images = [get_image_from_uri(value) if type_ == 'url' else value
-              for type_, value in style.background_image]
-    color = style.get_color('background_color')
+              for type_, value in style['background_image']]
+    color = get_color(style, 'background_color')
     if color.alpha == 0 and not any(images):
         box.background = None
         return
 
     box.background = Background(
-        color=color, image_rendering=style.image_rendering, layers=[
-            layout_background_layer(box, page, style.image_resolution, *layer)
+        color=color, image_rendering=style['image_rendering'], layers=[
+            layout_background_layer(
+                box, page, style['image_resolution'], *layer)
             for layer in zip(images, *map(cycle, [
-                style.background_size,
-                style.background_clip,
-                style.background_repeat,
-                style.background_origin,
-                style.background_position,
-                style.background_attachment]))])
+                style['background_size'],
+                style['background_clip'],
+                style['background_repeat'],
+                style['background_origin'],
+                style['background_position'],
+                style['background_attachment']]))])
 
 
 def percentage(value, refer_to):
@@ -172,7 +174,7 @@ def layout_background_layer(box, page, resolution, image, size, clip, repeat,
     else:
         size_width, size_height = size
         iwidth, iheight = image.get_intrinsic_size(
-            resolution, box.style.font_size)
+            resolution, box.style['font_size'])
         image_width, image_height = replaced.default_image_sizing(
             iwidth, iheight, image.intrinsic_ratio,
             percentage(size_width, positioning_width),

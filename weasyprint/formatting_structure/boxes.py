@@ -60,8 +60,10 @@
 from __future__ import division, unicode_literals
 
 import itertools
+from collections import ChainMap
 
 from ..compat import unichr, xrange
+from ..css import computed_from_cascaded
 from ..css.properties import Dimension
 
 # The *Box classes have many attributes and methods, but that's the way it is
@@ -97,8 +99,9 @@ class Box(object):
     @classmethod
     def anonymous_from(cls, parent, *args, **kwargs):
         """Return an anonymous box that inherits from ``parent``."""
-        return cls(
-            parent.element_tag, parent.style.inherit_from(), *args, **kwargs)
+        inherited_style = computed_from_cascaded(
+            cascaded={}, parent_style=parent.style, element=None)
+        return cls(parent.element_tag, inherited_style, *args, **kwargs)
 
     def copy(self):
         """Return shallow copy of the box."""
@@ -263,11 +266,11 @@ class Box(object):
 
     def is_floated(self):
         """Return whether this box is floated."""
-        return self.style.float != 'none'
+        return self.style['float'] != 'none'
 
     def is_absolutely_positioned(self):
         """Return whether this box is in the absolute positioning scheme."""
-        return self.style.position in ('absolute', 'fixed')
+        return self.style['position'] in ('absolute', 'fixed')
 
     def is_in_normal_flow(self):
         """Return whether this box is in normal flow."""
@@ -300,16 +303,15 @@ class ParentBox(Box):
 
     def _reset_spacing(self, side):
         """Set to 0 the margin, padding and border of ``side``."""
-        self.style['margin_%s' % side] = Dimension(0, 'px')
-        self.style['padding_%s' % side] = Dimension(0, 'px')
-        self.style['border_%s_width' % side] = 0
+        self.style = ChainMap({
+            'margin_%s' % side: Dimension(0, 'px'),
+            'padding_%s' % side: Dimension(0, 'px'),
+            'border_%s_width' % side: 0}, self.style)
         setattr(self, 'margin_%s' % side, 0)
         setattr(self, 'padding_%s' % side, 0)
         setattr(self, 'border_%s_width' % side, 0)
 
     def _remove_decoration(self, start, end):
-        if start or end:
-            self.style = self.style.copy()
         if start:
             self._reset_spacing('top')
         if end:
@@ -400,7 +402,6 @@ class LineBox(ParentBox):
 
     """
     def __init__(self, element_tag, style, children):
-        assert style.anonymous
         super(LineBox, self).__init__(element_tag, style, children)
 
 
@@ -415,9 +416,7 @@ class InlineLevelBox(Box):
 
     """
     def _remove_decoration(self, start, end):
-        if start or end:
-            self.style = self.style.copy()
-        ltr = self.style.direction == 'ltr'
+        ltr = self.style['direction'] == 'ltr'
         if start:
             self._reset_spacing('left' if ltr else 'right')
         if end:
@@ -455,10 +454,9 @@ class TextBox(InlineLevelBox):
     ascii_to_wide.update({0x20: '\u3000', 0x2D: '\u2212'})
 
     def __init__(self, element_tag, style, text):
-        assert style.anonymous
         assert text
         super(TextBox, self).__init__(element_tag, style)
-        text_transform = style.text_transform
+        text_transform = style['text_transform']
         if text_transform != 'none':
             text = {
                 'uppercase': lambda t: t.upper(),
@@ -467,7 +465,7 @@ class TextBox(InlineLevelBox):
                 'capitalize': lambda t: t.title(),
                 'full-width': lambda t: t.translate(self.ascii_to_wide),
             }[text_transform](text)
-        if style.hyphens == 'none':
+        if style['hyphens'] == 'none':
             text = text.replace('\u00AD', '')  # U+00AD SOFT HYPHEN (SHY)
         self.text = text
 

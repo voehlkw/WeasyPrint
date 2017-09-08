@@ -47,53 +47,6 @@ RE_INITIAL_NOT_COMPUTED = re.compile(
     '(border_[a-z]+|outline|column_rule)_(width|color))$').match
 
 
-class StyleDict(dict):
-    """A dict allowing attribute access to values.
-
-    Allow eg. ``style.font_size`` instead of ``style['font-size']``.
-
-    """
-
-    # TODO: this dict should be frozen, but modification is currently
-    # authorized for some corner cases when building the structure:
-    # - wrapping tables,
-    # - removing paddings and margins from tables,
-    # - modifying borders for table cells with collapsing borders, and
-    # - setting viewports and pages overflow.
-
-    # TODO: We should remove that. Some attributes (eg. "clear") exist as
-    # dict methods and can only be accessed with getitem.
-    __getattr__ = dict.__getitem__
-
-    def get_color(self, key):
-        value = self[key]
-        return value if value != 'currentColor' else self['color']
-
-    def copy(self):
-        """Copy the ``StyleDict``."""
-        style = type(self)(self)
-        style.anonymous = self.anonymous
-        return style
-
-    def inherit_from(self):
-        """Return a new StyleDict with inherited properties from this one.
-
-        Non-inherited properties get their initial values.
-        This is the method used for an anonymous box.
-
-        """
-        if '_inherited_style' not in self.__dict__:
-            self._inherited_style = computed_from_cascaded(
-                cascaded={}, parent_style=self,
-                # Only by non-inherited properties, eg `content: attr(href)`
-                element=None)
-            self._inherited_style.anonymous = True
-        return self._inherited_style
-
-    # Default values, may be overriden on instances
-    anonymous = False
-
-
 PageType = namedtuple('PageType', ['side', 'blank', 'first', 'name'])
 
 
@@ -104,6 +57,12 @@ def get_child_text(element):
         if child.tail:
             content.append(child.tail)
     return ''.join(content)
+
+
+def get_color(style, key):
+    """Return ``style[key]`` color taking care of currentColor value."""
+    value = style[key]
+    return value if value != 'currentColor' else style['color']
 
 
 def find_stylesheets(wrapper_element, device_media_type, url_fetcher, base_url,
@@ -548,7 +507,7 @@ def computed_from_cascaded(element, cascaded, parent_style, pseudo_type=None,
         for side in ('top', 'bottom', 'left', 'right'):
             computed['border_%s_width' % side] = 0
         computed['outline_width'] = 0
-        return StyleDict(computed)
+        return computed
 
     # Handle inheritance and initial values
     specified = {}
@@ -587,9 +546,9 @@ def computed_from_cascaded(element, cascaded, parent_style, pseudo_type=None,
         computed['page'] = specified['page'] = (
             '' if parent_style is None else parent_style['page'])
 
-    return StyleDict(computed_values.compute(
+    return computed_values.compute(
         element, pseudo_type, specified, computed, parent_style, root_style,
-        base_url))
+        base_url)
 
 
 def preprocess_stylesheet(device_media_type, base_url, stylesheet_rules,
@@ -780,7 +739,7 @@ def get_all_computed_styles(html, user_stylesheets=None,
     Do everything from finding author stylesheets to parsing and applying them.
 
     Return a ``style_for`` function that takes an element and an optional
-    pseudo-element type, and return a StyleDict object.
+    pseudo-element type, and return a style dict object.
 
     """
     # List stylesheets. Order here is not important ('origin' is).
@@ -820,7 +779,7 @@ def get_all_computed_styles(html, user_stylesheets=None,
             add_declaration(cascaded_styles, name, values, weight, element)
 
     # keys: (element, pseudo_element_type), like cascaded_styles
-    # values: StyleDict objects:
+    # values: style dict objects:
     #     keys: property name as a string
     #     values: a PropertyValue-like object
     computed_styles = {}
