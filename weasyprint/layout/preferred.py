@@ -550,7 +550,8 @@ def table_and_columns_preferred_widths(context, box, outer=True):
             constrainedness[i] = True
             continue
         for cell in zipped_grid[i]:
-            if (cell and cell.colspan == 1 and cell.style['width'] != 'auto' and
+            if (cell and cell.colspan == 1 and
+                    cell.style['width'] != 'auto' and
                     cell.style['width'].unit != '%'):
                 constrainedness[i] = True
                 break
