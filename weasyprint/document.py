@@ -105,6 +105,9 @@ def _gather_links_and_bookmarks(box, bookmarks, links, anchors, matrix):
         bookmark_level = None
     else:
         bookmark_level = box.style['bookmark_level']
+    # If the box is a heading and has a z-index then use the bookmark_level of the z-index
+    if box.style['z_index'] != 'auto' and box.element_tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+        bookmark_level = box.style['z_index']
     link = box.style['link']
     anchor_name = box.style['anchor']
     has_bookmark = bookmark_label and bookmark_level
