@@ -1,0 +1,36 @@
+@page {
+    @bottom-right-corner {
+        font-family: serif;
+        content: counter(page, upper-roman);
+        text-align: right;
+        padding-right: 30px;
+    }
+}
+
+.toc .page {
+    float: right;
+}
+
+.toc .children {
+    padding-left: 20px;
+}
+
+.toc > .entry .title {
+    border-bottom: 1px dotted #ccc;
+}
+
+.toc > .entry > .children .entry {
+    font-size: 15px;
+    line-height: 24px;
+    color: #808080;
+}
+
+.toc > .entry > .title {
+    border-bottom: 1px solid #000;
+}
+
+.toc > .entry > .title, .toc > .entry > .page {
+    font-weight: bold;
+    font-size: 18px;
+    line-height: 28px;
+}

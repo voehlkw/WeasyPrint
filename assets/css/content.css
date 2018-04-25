@@ -1,0 +1,66 @@
+@page {
+    @top-left {
+        content: string(chapter);
+    }
+}
+
+*[name="header"], *[name="header-left"] {
+    display: none;
+}
+
+#page-header {
+    position: fixed;
+    margin: -1.5cm 0 0 0;
+    width: 23.2cm;
+    font-size: 12px;
+    border-bottom: 1px solid #000;
+}
+
+#page-header-top {
+    width: 100%;
+    height: 1.2cm;
+    font-weight: bold;
+
+}
+
+#page-header-image {
+    height: 100%;
+    float: right;
+}
+
+#page-header-image img {
+    width: 3.5cm;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 10px 0 5px 0;
+}
+
+h1 {
+    font-size: 24px;
+    -weasy-string-set: chapter content();
+}
+
+h2 {
+    font-size: 22px;
+}
+
+h3 {
+    font-size: 20px;
+}
+
+h4 {
+    font-size: 18px;
+}
+
+h5 {
+    font-size: 16px;
+}
+
+h6 {
+    font-size: 14px;
+}
+
+cover {
+    background: red;
+}

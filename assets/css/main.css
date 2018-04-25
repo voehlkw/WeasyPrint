@@ -1,0 +1,32 @@
+@page {
+    margin: 2cm 1.0cm 2cm 1.8cm;
+    size: 26.5cm 37.1cm;
+    @top-left {
+        font-size: 13px;
+        font-weight: bold;
+        margin: 1.2cm 0 0 0.2cm;
+    }
+}
+
+@font-face {
+    font-family: HelveticaNeue;
+    src: url(../font/HelveticaNeue-MediumExt.otf);
+}
+
+* {
+    font-family: HelveticaNeue;
+    color: #373a3c;
+}
+
+body {
+    font-size: 14px;
+}
+
+img {
+    max-width: 100%;
+}
+
+ul, ol {
+    margin: 0 0 10px 25px;
+    padding: 0;
+}
